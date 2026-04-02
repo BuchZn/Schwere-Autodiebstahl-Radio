@@ -1,234 +1,185 @@
+import subprocess
+import random
 import time
-import signal
-from PIL import Image
-import struct
-from RPi import GPIO
-from PlayRadio import play_radio, init_random_duration
 import threading
 
+mp3_process = None
+play_thread = None
+stop_thread = False
+play_lock = threading.Lock()  # Prevents race conditions when switching stations
 
+FRAMES_PER_SEC = 48000 / 1152
 
+time_old = 0
 
-CLK  = 5
-DT = 6
-SW = 26
+# Map of (folder_index, image_index) -> song path New
+STATION_MAP = {
+    (0, 1):  '/home/pi/audio/Blaine County Radio.mp3',
+    (0, 2):  '/home/pi/audio/Non-Stop-Pop FM.mp3',
+    (0, 3):  '/home/pi/audio/Blue Ark.mp3',
+    (0, 4):  '/home/pi/audio/Channel X.mp3',
+    (0, 5):  '/home/pi/audio/East Los FM.mp3',
+    (0, 6):  '/home/pi/audio/Radio Los Santos.mp3',
+    (0, 7):  '/home/pi/audio/Radio Mirror Park.mp3',
+    (0, 8):  '/home/pi/audio/Rebel Radio.mp3',
+    (0, 9):  '/home/pi/audio/Los Santos Rock Radio.mp3',
+    (0, 10): '/home/pi/audio/Soulwax FM.mp3',
+    (0, 11): '/home/pi/audio/Space 103.2.mp3',
+    (0, 12): '/home/pi/audio/The Lowdown 91.1.mp3',
+    (0, 13): '/home/pi/audio/Vinewood Boulevard Radio.mp3',
+    (0, 14): '/home/pi/audio/West Coast Talk Radio.mp3',
+    (0, 15): '/home/pi/audio/West Coast Classics.mp3',
+    (0, 16): '/home/pi/audio/WorldWide FM.mp3',
+    (0, 17): '/home/pi/audio/FlyLo FM.mp3',
+    (0, 18): '/home/pi/audio/Los Santos Underground Radio.mp3',
+    (0, 19): '/home/pi/audio/Blonded Radio.mp3',
+    (0, 20): '/home/pi/audio/The Lab.mp3'
+}
 
+# Dictionary to store the duration of each MP3 file in seconds
+mp3_durations = {
+    '/home/pi/audio/Non-Stop-Pop FM.mp3': 10000, #C
+    '/home/pi/audio/Blaine County Radio.mp3': 4892, #C
+    '/home/pi/audio/Blue Ark.mp3': 4790, #C
+    '/home/pi/audio/Channel X.mp3': 2827,#C
+    '/home/pi/audio/East Los FM.mp3': 2465, #C
+    '/home/pi/audio/Radio Los Santos.mp3': 6691, #C
+    '/home/pi/audio/Radio Mirror Park.mp3': 9160, #C
+    '/home/pi/audio/Rebel Radio.mp3': 3457, #C
+    '/home/pi/audio/Los Santos Rock Radio.mp3': 9322, #C
+    '/home/pi/audio/Soulwax FM.mp3': 2567, #C
+    '/home/pi/audio/Space 103.2.mp3': 5653, #C
+    '/home/pi/audio/The Lowdown 91.1.mp3': 4372, #C
+    '/home/pi/audio/Vinewood Boulevard Radio.mp3': 3958, #C
+    '/home/pi/audio/West Coast Talk Radio.mp3': 5617, #C
+    '/home/pi/audio/West Coast Classics.mp3': 6978, #C
+    '/home/pi/audio/WorldWide FM.mp3': 7232, #C
+    '/home/pi/audio/FlyLo FM.mp3': 4298, #C
+    '/home/pi/audio/Los Santos Underground Radio.mp3': 16731, #C
+    '/home/pi/audio/Blonded Radio.mp3' : 6140, #C
+    '/home/pi/audio/The Lab.mp3': 3456 #C
+}
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(CLK, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-GPIO.setup(DT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-GPIO.setup(SW,GPIO.IN , pull_up_down=GPIO.PUD_DOWN)
+#Dict to save the Live Duration Frame of every Sation
+random_durations = {
+    '/home/pi/audio/Non-Stop-Pop FM.mp3': 0, 
+    '/home/pi/audio/Blaine County Radio.mp3': 0, 
+    '/home/pi/audio/Blue Ark.mp3': 0, 
+    '/home/pi/audio/Channel X.mp3': 0,
+    '/home/pi/audio/East Los FM.mp3': 0, 
+    '/home/pi/audio/Radio Los Santos.mp3': 0, 
+    '/home/pi/audio/Radio Mirror Park.mp3': 0, 
+    '/home/pi/audio/Rebel Radio.mp3': 0,
+    '/home/pi/audio/Los Santos Rock Radio.mp3': 0, 
+    '/home/pi/audio/Soulwax FM.mp3': 0, 
+    '/home/pi/audio/Space 103.2.mp3': 0, 
+    '/home/pi/audio/The Lowdown 91.1.mp3': 0,
+    '/home/pi/audio/Vinewood Boulevard Radio.mp3': 0,
+    '/home/pi/audio/West Coast Talk Radio.mp3': 0,
+    '/home/pi/audio/West Coast Classics.mp3': 0,
+    '/home/pi/audio/WorldWide FM.mp3': 0, 
+    '/home/pi/audio/FlyLo FM.mp3': 0, 
+    '/home/pi/audio/Los Santos Underground Radio.mp3': 0,
+    '/home/pi/audio/Blonded Radio.mp3' : 0, 
+    '/home/pi/audio/The Lab.mp3': 0     
+}
 
+def init_random_duration():
 
-BLC_Radio = "./img/BLC.jpeg"
-Nonstopp = "./img/NonStopPop.jpg"
-BlueArk = "./img/BlueArk.jpeg"
-ChannelX = "./img/ChannelX.jpeg"
-EastLostFM = "./img/EastLostFm.jpeg"
-EastLosantos = "./img/EastLosantos.jpeg"
-RadioMirrow = "./img/RadioMirrow.jpeg"
-RebelRadio = "./img/RebelRadio.jpeg"
-RockRadio = "./img/RockRadio.jpeg"
-SoulwaxFM = "./img/SoulwaxFM.jpeg"
-SpaceFM = "./img/SpaceFM.jpeg"
-Thelowlay = "./img/Thelowlay.jpeg"
-Vineyard = "./img/Vineyard.jpeg"
-WCTRradio = "./img/WCTR.jpeg"
-WestCoastClassic = "./img/WCclassics.jpeg"
-WorldwideFM = "./img/WorldWideFM.jpg"
-FlyloFM = './img/FlyloFM.jpeg'
-LosU = './img/LosSantosU.jpg'
-Lap = './img/LapR.jpg'
-Blonde = './img/Blonded_Radio.jpeg'
-Loading = './img/Loading_Screen.jpg'
+    for path, total_l in mp3_durations.items():
+        random_durations[path] = int(random.uniform(0, total_l) * FRAMES_PER_SEC)
 
-
-#Rotary Encoder Conf
-counter = 0
-clkLastState = GPIO.input(CLK)   # Initial read of CLK pin
-clkState = 0
-delayTime = 0.02
-dtState = 0
-swState = 0
-image_index = 1
-
-def create_buffer(img_path):
-    img = Image.open(img_path).convert("RGB")
-    img = img.resize((240, 240))
-    pixels = img.load()
-    
-    # Erstellen einen leeren Daten-Puffer
-    buffer = bytearray()
-    
-    # Jeden einzelnen Pixel durchgehen und in den Puffer packen
-    for y in range(240):
-        for x in range(240):
-            r, g, b = pixels[x, y]
+# Update Duration so Stations feel like they are really playing in the Background
+def update_duration(time_delta):
+    # Wir brauchen selectedSong hier nicht mehr
+    for path, current_frame in random_durations.items():
+        # Vergangene Zeit in Frames umrechnen und addieren
+        frames_passed = int(time_delta * FRAMES_PER_SEC)
+        new_frame = current_frame + frames_passed
+        
+        # Maximale Frames für DIESEN spezifischen Sender berechnen
+        max_frames = mp3_durations.get(path, 0) * FRAMES_PER_SEC
+        
+        # Wenn der Song zu Ende ist, fange wieder von vorne an
+        if max_frames > 0:
+            new_frame = new_frame % max_frames
             
-            # Die Farben für das Display in das 16-Bit Format (RGB565) umrechnen
-            color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-            
-            # Die 2 Bytes des Pixels an den Puffer anhängen
-            buffer.extend(struct.pack('<H', color))
+        random_durations[path] = new_frame
 
-    return buffer
+def play_radio_thread(selectedSong, duration):
+    global mp3_process
+    global stop_thread
 
-blc = create_buffer(BLC_Radio)
-nonstop = create_buffer(Nonstopp)
-blueA = create_buffer(BlueArk)
-CHx = create_buffer(ChannelX)
-ELSfm = create_buffer(EastLostFM)
-Es = create_buffer(EastLosantos)
-Rm = create_buffer(RadioMirrow)
-RebelR = create_buffer(RebelRadio)
-RockR = create_buffer(RockRadio)
-Soulwax = create_buffer(SoulwaxFM)
-Space = create_buffer(SpaceFM)
-Lowlay = create_buffer(Thelowlay)
-Vn = create_buffer(Vineyard)
-WTCr = create_buffer(WCTRradio)
-WSc = create_buffer(WestCoastClassic)
-WWfm = create_buffer(WorldwideFM)
-Flfm = create_buffer(FlyloFM)
-LosUfm = create_buffer(LosU)
-LapB = create_buffer(Lap)
-BlondeB = create_buffer(Blonde)
-Loading_S = create_buffer(Loading)
+    while not stop_thread:
+        #random_start_frame = int(random.uniform(0, duration) * FRAMES_PER_SEC)
+        print(f"Playing {selectedSong} from frame {duration}")
+
+        mp3_process = subprocess.Popen([
+            'mpg123', '-q', '-a', 'hw:0,0', '--fuzzy', '-k', str(duration), selectedSong
+        ])  
+        song_duration = mp3_durations.get(selectedSong)
+        sleep_time = song_duration - (duration / FRAMES_PER_SEC) - 2
+        duration = 0
+
+        # Sleep in small chunks so stop_thread can interrupt quickly
+        steps = int(sleep_time * 10)
+        for _ in range(steps):
+            if stop_thread:
+                break
+            time.sleep(0.1)
+
+        if mp3_process and mp3_process.poll() is None:
+            mp3_process.terminate()
 
 
-def write_to_lcd(buffer):
-    # Create an internal function for the thread to run
-    def _write():
-        try:
-            with open("/dev/fb1", "wb") as fb:
-                fb.write(buffer)
-            print("Bild ist auf dem Display!")
-        except Exception as e:
-            print(f"LCD Error: {e}")
+def play_radio(folder_index, image_index):
+    global mp3_process
+    global play_thread
+    global stop_thread
+    global time_old
 
-    # Start it in the background
-    lcd_thread = threading.Thread(target=_write)
-    lcd_thread.start()
+    # FIX 2: Use a lock so rapid encoder turns can't spawn multiple threads at once
+    with play_lock:
+        selectedSong = STATION_MAP.get((folder_index, image_index))
+        if selectedSong is None:
+            print(f"Error: No station mapped for folder={folder_index}, index={image_index}")
+            return
 
-encoder_steps = 0
-# Updated callback logic
-def ausgabeFunktion(channel):
-    global image_index, clkLastState, encoder_steps
-    
-    # Read current state of CLK
-    current_clk = GPIO.input(CLK)
-    
-    # Only act if the state has actually changed
-    if current_clk != clkLastState:
-        if GPIO.input(DT) != current_clk:
-            encoder_steps += 1
+        # 1. Tell the old thread to stop
+        stop_thread = True
+
+        # 2. Kill the old audio process immediately
+        if mp3_process and mp3_process.poll() is None:
+            mp3_process.terminate()
+
+        # 3. Wait briefly for the old thread to exit (non-blocking)
+        if play_thread and play_thread.is_alive():
+            play_thread.join(timeout=0.3)
+
+        #Update other stations duration
+        time_now = time.time()
+
+        if(time_old == 0):
+            elapsed_time = 0
+            time_old = time.time()
         else:
-            encoder_steps -= 1
+            elapsed_time = time_now - time_old
+        time_old = time_now
 
-        # Erst bei jedem 2. Schritt den Index ändern
-        if abs(encoder_steps) >= 2:
-            if encoder_steps > 0:
-                image_index += 1
-            else:
-                image_index -= 1
-            
-            encoder_steps = 0  # zurücksetzen
-
-            if image_index > 21: image_index = 1
-            if image_index < 1:  image_index = 21
-
-
-            if(image_index == 1):
-                write_to_lcd(blc)
-                play_radio(0, 1)
-            elif((image_index > 1) and (image_index <= 2)):
-                write_to_lcd(nonstop)
-                play_radio(0, 2)
-            elif((image_index > 2) and (image_index <= 3)):
-                write_to_lcd(blueA)
-                play_radio(0, 3)
-            elif((image_index > 3) and (image_index <= 4)):
-                write_to_lcd(CHx)
-                play_radio(0, 4)
-            elif((image_index > 4) and (image_index <= 5)):
-                write_to_lcd(ELSfm)
-                play_radio(0, 5)
-            elif((image_index > 5) and (image_index <= 6)):
-                write_to_lcd(Es)
-                play_radio(0, 6)
-            elif((image_index > 6) and (image_index <= 7)):
-                write_to_lcd(Rm)
-                play_radio(0, 7)
-            elif((image_index > 7) and (image_index <= 8)):
-                write_to_lcd(RebelR)
-                play_radio(0, 8)
-            elif((image_index > 8) and (image_index <= 9)):
-                write_to_lcd(RockR)
-                play_radio(0, 9)
-            elif((image_index > 9) and (image_index <= 10)):
-                write_to_lcd(Soulwax)
-                play_radio(0, 10)
-            elif((image_index > 10) and (image_index <= 11)):
-                write_to_lcd(Space)
-                play_radio(0, 11)
-            elif((image_index > 11) and (image_index <= 12)):
-                write_to_lcd(Lowlay)
-                play_radio(0, 12)
-            elif((image_index > 12) and (image_index <= 13)):
-                write_to_lcd(Vn)
-                play_radio(0, 13)
-            elif((image_index > 13) and (image_index <= 14)):
-                write_to_lcd(WTCr)
-                play_radio(0, 14)
-            elif((image_index > 14) and (image_index <= 15)):
-                write_to_lcd(WSc)
-                play_radio(0, 15)
-            elif((image_index > 15) and (image_index <= 16)):
-                write_to_lcd(WWfm)
-                play_radio(0, 16)
-            elif((image_index > 16) and (image_index <= 17)):
-                write_to_lcd(Flfm)
-                play_radio(0, 17)
-            elif((image_index > 17) and (image_index <= 18)):
-                write_to_lcd(LosUfm)     
-                play_radio(0, 18)
-            elif((image_index > 18) and (image_index <= 19)):
-                write_to_lcd(BlondeB)     
-                play_radio(0, 19)
-            elif((image_index > 19) and (image_index <= 20)):
-                write_to_lcd(LapB)     
-                play_radio(0, 20)         
-            
-            print(f"Current Image Index: {image_index}")
-        
-    clkLastState = current_clk
-
-# Change the event detect to BOTH edges for smoother tracking
-GPIO.remove_event_detect(CLK)
-GPIO.add_event_detect(CLK, GPIO.BOTH, callback=ausgabeFunktion, bouncetime=5)
+        update_duration(elapsed_time)
 
 
 
-def main():
-    print("Started Radio. Abbruch mit Strg+C")
-    write_to_lcd(Loading_S)
-    print("Initialization of Random Start Durations")
-    init_random_duration()
-
-    try:
-        # Use signal.pause() to keep the script running indefinitely
-        signal.pause()
-    except KeyboardInterrupt:
-        print("\nCleaning up...")
-    finally:
-        GPIO.cleanup()
+        #duration = mp3_durations.get(selectedSong)
+        duration = random_durations.get(selectedSong)
+        if duration is None:
+            print(f"Error: Duration not found for {selectedSong}")
+            return
 
 
+        # 4. Start the new station
+        stop_thread = False
 
-        
 
-    
-
-# Main Loop
-if __name__ == "__main__":
-    main()
+        play_thread = threading.Thread(target=play_radio_thread, args=(selectedSong, duration), daemon=True)
+        play_thread.start()
