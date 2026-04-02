@@ -134,19 +134,11 @@ echo "Do you want to download the GTA-Radio Files ? (y/n)"
 read c
 if [[ "$c" == "y" || "$confirm" == "yes" ]]; then
     echo "------------------------------------------------------------"
-    echo "[1/3] Downloading Repository"
+    echo "[1/1] Downloading Repository"
     echo "------------------------------------------------------------"
     cd /home/pi
     git clone https://github.com/BuchZn/Schwere-Autodiebstahl-Radio.git
     cd Schwere-Autodiebstahl-Radio/
-    echo "------------------------------------------------------------"
-    echo "[2/3] Creating Folder /home/pi/Schwere-Autodiebstahl-Radio/img"
-    echo "------------------------------------------------------------"
-    mkdir /home/pi/Schwere-Autodiebstahl-Radio/img
-    echo "------------------------------------------------------------"
-    echo "[3/3] Creating Folder /home/pi/Schwere-Autodiebstahl-Radio/img/audio"
-    echo "------------------------------------------------------------"
-    mkdir /home/pi/Schwere-Autodiebstahl-Radio/img/audio
 
     echo "Do you want to activate the Radio System Service? (y/n)"
     read cc
