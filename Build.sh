@@ -145,18 +145,38 @@ if [[ "$c" == "y" || "$confirm" == "yes" ]]; then
     if [[ "$cc" == "y" || "$confirm" == "yes" ]]; then
 
         echo "------------------------------------------------------------"
-        echo "[1/2] Add Schwere-Autodiebstahl-Radio Service to /etc/systemd/system/"
+        echo "[1/5] Add Schwere-Autodiebstahl-Radio Service to /etc/systemd/system/"
         echo "------------------------------------------------------------"
 
         cd /home/pi/Schwere-Autodiebstahl-Radio
         sudo cp ./Schwere-Autodiebstahl-Radio.service /etc/systemd/system/Schwere-Autodiebstahl-Radio.service
 
         echo "------------------------------------------------------------"
-        echo "[2/3] Reloading System Daemon "
+        echo "[2/5] Installing system dependencies..."
+        echo "------------------------------------------------------------"
+
+        sudo apt-get install -y \
+            python3-pip \
+            python3-pil \
+            python3-rpi.gpio \
+            python3-dev \
+            libjpeg-dev \
+            zlib1g-dev
+
+        echo "------------------------------------------------------------"
+        echo "[3/4] Installing Python packages..."
+        echo "------------------------------------------------------------"
+        pip3 install --break-system-packages \
+            Pillow \
+            RPi.GPIO
+
+
+        echo "------------------------------------------------------------"
+        echo "[4/5] Reloading System Daemon "
         echo "------------------------------------------------------------"
         sudo systemctl daemon-reload
         echo "------------------------------------------------------------"
-        echo "[3/3] Enable  Schwerer-Autodiebstahl-Service "
+        echo "[5/5] Enable  Schwerer-Autodiebstahl-Service "
         echo "------------------------------------------------------------"
 
         sudo systemctl enable Schwere-Autodiebstahl-Radio
