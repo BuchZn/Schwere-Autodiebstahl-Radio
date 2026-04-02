@@ -1,22 +1,26 @@
 #!/bin/bash
 
 # Prüfen, ob das Script als Root ausgeführt wird
-if [ "$EUID" -ne 0 ]; then 
+if [ "$EUID" -ne 0 ]; then
   echo "Please use start the Script with sudo $0"
   exit
 fi
 
 echo "--- Start the GTA-PI Setup ---"
+echo "               ┳┓    ┳┓   ┓ ┏┓    "
+echo "               ┣┫┓┏  ┣┫┓┏┏┣┓┏┛┏┓  "
+echo "               ┻┛┗┫  ┻┛┗┻┗┛┗┗┛┛┗  "
+echo "                  ┛              "
 
 echo "------------------------------------------------------------"
-echo "[1/9] Create Backup of current Mirrors..."
+echo "[1/12] Create Backup of current Mirrors..."
 echo "------------------------------------------------------------"
 cp /etc/apt/sources.list /etc/apt/sources.list.bak
 cp /etc/apt/sources.list.d/raspi.list /etc/apt/sources.list.d/raspi.list.bak
 
 
 echo "------------------------------------------------------------"
-echo "[2/9] Update /etc/apt/sources.list (Legacy Mirror)..."
+echo "[2/12] Update /etc/apt/sources.list (Legacy Mirror)..."
 echo "------------------------------------------------------------"
 cat <<EOF > /etc/apt/sources.list
 deb http://legacy.raspbian.org/raspbian/ buster main contrib non-free rpi
@@ -25,7 +29,7 @@ EOF
 
 
 echo "------------------------------------------------------------"
-echo "[3/9] Update /etc/apt/sources.list.d/raspi.list..."
+echo "[3/12] Update /etc/apt/sources.list.d/raspi.list..."
 echo "------------------------------------------------------------"
 cat <<EOF > /etc/apt/sources.list.d/raspi.list
 deb http://archive.raspberrypi.org/debian/ buster main
@@ -33,7 +37,7 @@ EOF
 
 
 echo "------------------------------------------------------------"
-echo "[4/9] Run apt-get update (Force IPv4 & ReleaseInfo Change)..."
+echo "[4/12] Run apt-get update (Force IPv4 & ReleaseInfo Change)..."
 echo "NOTE: Do NOT run ‘apt upgrade’ afterward to protect flexfb!"
 echo "------------------------------------------------------------"
 
@@ -41,7 +45,7 @@ apt-get update -o Acquire::ForceIPv4=true --allow-releaseinfo-change
 
 echo "------------------------------------------------------------"
 echo "Finished Mirrow update if no 404 was found."
-echo "[5/9] Configure kernel modules..."
+echo "[5/12] Configure kernel modules..."
 echo "------------------------------------------------------------"
 
 
@@ -53,7 +57,7 @@ for mod in spi-bcm2835 flexfb fbtft_device; do
 done
 
 echo "------------------------------------------------------------"
-echo "[6/9] Create /etc/modprobe.d/fbtft.conf..."
+echo "[6/12] Create /etc/modprobe.d/fbtft.conf..."
 echo "------------------------------------------------------------"
 cat <<EOF > /etc/modprobe.d/fbtft.conf
 options fbtft_device name=flexfb gpios=reset:27,dc:25,cs:8,led:18 speed=40000000 bgr=1 fps=60 custom=1 height=240 width=240
@@ -61,11 +65,11 @@ options flexfb setaddrwin=0 width=240 height=240 init=-1,0x11,-2,120,-1,0xEF,-1,
 EOF
 
 echo "------------------------------------------------------------"
-echo "[7/9] Install Build-Tools and compile fbcp..."
+echo "[7/12] Install Build-Tools and compile fbcp..."
 echo "------------------------------------------------------------"
 
 apt-get update -o Acquire::ForceIPv4=true --allow-releaseinfo-change
-apt-get install -y cmake git 
+apt-get install -y cmake git
 
 cd /home/pi
 if [ ! -d "rpi-fbcp" ]; then
@@ -79,23 +83,52 @@ make
 install fbcp /usr/local/bin/fbcp
 
 echo "------------------------------------------------------------"
-echo "[8/9] Optimize HDMI Configurations in /boot/config.txt..."
+echo "[8/12] Optimize HDMI Configurations in /boot/config.txt..."
 echo "------------------------------------------------------------"
 
 if ! grep -q "hdmi_cvt=300 300" /boot/config.txt; then
 cat <<EOF >> /boot/config.txt
 
 # Round Display Settings
-hdmi_force_hotplug=1 
-hdmi_cvt=300 300 60 1 0 0 0 
-hdmi_group=2 
-hdmi_mode=87 
+hdmi_force_hotplug=1
+hdmi_cvt=300 300 60 1 0 0 0
+hdmi_group=2
+hdmi_mode=87
 display_rotate=1
 EOF
 fi
 
 echo "------------------------------------------------------------"
-echo "[9/9] Konfiguration abgeschlossen!"
+echo "[9/12] Configuring audio for HiFiBerry DAC teeBlacklist onboard sound"
+echo "------------------------------------------------------------"
+
+echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/alsa-blacklist.conf
+
+echo "------------------------------------------------------------"
+echo "[10/12] Comment out onboard audio and add DAC overlay in config.txt"
+echo "------------------------------------------------------------"
+
+sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/' /boot/firmware/config.txt
+echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/firmware/config.txt
+
+echo "------------------------------------------------------------"
+echo "[11/12] Write ALSA config"
+echo "------------------------------------------------------------"
+
+sudo tee /etc/asound.conf > /dev/null <<EOF
+pcm.!default {
+    type hw
+    card 0
+}
+ctl.!default {
+    type hw
+    card 0
+}
+EOF
+
+
+echo "------------------------------------------------------------"
+echo "[12/12] Konfiguration abgeschlossen!"
 echo "------------------------------------------------------------"
 echo "Do you want to download the GTA-Radio Files ? (y/n)"
 read c
@@ -118,25 +151,33 @@ if [[ "$c" == "y" || "$confirm" == "yes" ]]; then
     echo "Do you want to activate the Radio System Service? (y/n)"
     read cc
     if [[ "$cc" == "y" || "$confirm" == "yes" ]]; then
+
         echo "------------------------------------------------------------"
         echo "[1/2] Add Schwere-Autodiebstahl-Radio Service to /etc/systemd/system/"
         echo "------------------------------------------------------------"
-        cd /home/pi/GTA-Radio
-        sudo cp ./GTA-Radio.service /etc/systemd/system/GTA-Radio.service
+
+        cd /home/pi/Schwere-Autodiebstahl-Radio
+        sudo cp ./Schwere-Autodiebstahl-Radio.service /etc/systemd/system/Schwere-Autodiebstahl-Radio.service
+
         echo "------------------------------------------------------------"
-        echo "[2/2] Enable  Schwerer-Autodiebstahl-Service "
+        echo "[2/3] Reloading System Daemon "
         echo "------------------------------------------------------------"
-        systemctl enable Schwere-Autodiebstahl-Radio
+        sudo systemctl daemon-reload
+        echo "------------------------------------------------------------"
+        echo "[3/3] Enable  Schwerer-Autodiebstahl-Service "
+        echo "------------------------------------------------------------"
+
+        sudo systemctl enable Schwere-Autodiebstahl-Radio
     fi
 
 
-     
+
 fi
 
 
 
 echo "There is a Pending update the system needs to Reboot"
-echo "After the Reboot fbcp should be ready." 
+echo "After the Reboot fbcp should be ready."
 echo "If you installed the Radio Service remove the SD-After the reboot and Move your own MP3 and JPEG Files in the Designated Folders."
 echo "Run the bin_Creater.py to create bin Files of every Image to make the Service Start faster"
 echo "Should the System reboot now? (y/n)"
