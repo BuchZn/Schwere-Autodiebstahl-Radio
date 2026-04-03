@@ -1,16 +1,16 @@
 [Unit]
 Description=GTA-Radio that Plays via PCm5102 Output and recives Controls over Rotary Encoder, also displays Images on tft diplay
-After=  sound.target
+After=sound.target
 StartLimitIntervalSec=0
 
 [Service]
-WorkingDirectory=/home/pi/GTA-Radio
+WorkingDirectory=/home/pi/Schwerer-Autodiebstahl-Radio/
 Type=simple
 Restart=always
-RestartSec=1
+RestartSec=5
 User=pi
 Environment=XDG_RUNTIME_DIR=/run/user/1000
-ExecStart=/usr/bin/python3  /home/pi/GTA-Radio/GTA-Radio.py
+ExecStart=/usr/bin/python3  /home/pi/Schwerer-Autodiebstahl-Radio/Schwerer-Autodiebstahl-Radio.py
 
 
 [Install]
