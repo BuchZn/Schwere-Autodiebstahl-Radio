@@ -8,7 +8,7 @@ WorkingDirectory=/home/pi/Schwerer-Autodiebstahl-Radio/
 Type=simple
 Restart=always
 RestartSec=5
-User=pi
+User=root
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 ExecStart=/usr/bin/python3  /home/pi/Schwerer-Autodiebstahl-Radio/Schwerer-Autodiebstahl-Radio.py
 

@@ -20,17 +20,6 @@ GPIO.setup(DT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(SW,GPIO.IN , pull_up_down=GPIO.PUD_DOWN)
 
 
- 
-#Rotary Encoder Conf
-counter = 0
-clkLastState = GPIO.input(CLK)   # Initial read of CLK pin
-clkState = 0
-delayTime = 0.02
-dtState = 0
-swState = 0
-image_index = 1
-
-
 BLC_Radio = "./img/BLC.jpeg"
 Nonstopp = "./img/NonStopPop.jpg"
 BlueArk = "./img/BlueArk.jpeg"
@@ -52,6 +41,16 @@ LosU = './img/LosSantosU.jpg'
 Lap = './img/LapR.jpg'
 Blonde = './img/Blonded_Radio.jpeg'
 Loading = './img/Loading_Screen.jpg'
+
+
+#Rotary Encoder Conf
+counter = 0
+clkLastState = GPIO.input(CLK)   # Initial read of CLK pin
+clkState = 0
+delayTime = 0.02
+dtState = 0
+swState = 0
+image_index = 1
 
 def create_buffer(img_path):
     img = Image.open(img_path).convert("RGB")
