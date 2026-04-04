@@ -30,6 +30,29 @@ dtState = 0
 swState = 0
 image_index = 1
 
+
+BLC_Radio = "./img/BLC.jpeg"
+Nonstopp = "./img/NonStopPop.jpg"
+BlueArk = "./img/BlueArk.jpeg"
+ChannelX = "./img/ChannelX.jpeg"
+EastLostFM = "./img/EastLostFm.jpeg"
+EastLosantos = "./img/EastLosantos.jpeg"
+RadioMirrow = "./img/RadioMirrow.jpeg"
+RebelRadio = "./img/RebelRadio.jpeg"
+RockRadio = "./img/RockRadio.jpeg"
+SoulwaxFM = "./img/SoulwaxFM.jpeg"
+SpaceFM = "./img/SpaceFM.jpeg"
+Thelowlay = "./img/Thelowlay.jpeg"
+Vineyard = "./img/Vineyard.jpeg"
+WCTRradio = "./img/WCTR.jpeg"
+WestCoastClassic = "./img/WCclassics.jpeg"
+WorldwideFM = "./img/WorldWideFM.jpg"
+FlyloFM = './img/FlyloFM.jpeg'
+LosU = './img/LosSantosU.jpg'
+Lap = './img/LapR.jpg'
+Blonde = './img/Blonded_Radio.jpeg'
+Loading = './img/Loading_Screen.jpg'
+
 def create_buffer(img_path):
     img = Image.open(img_path).convert("RGB")
     img = img.resize((240, 240))
